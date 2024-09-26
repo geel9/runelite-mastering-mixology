@@ -17,6 +17,6 @@ public interface MasteringMixologyConfig extends Config {
             description = "Which building you most prefer to use"
     )
     default AlchemyBuilding prioritisedBuilding() {
-        return AlchemyBuilding.RETORT_CONCENTRATOR;
+        return AlchemyBuilding.NONE;
     }
 }
