@@ -24,7 +24,7 @@ import java.awt.*;
 @PluginDescriptor(
         name = "Mastering Mixology",
         description = "Mixing and mastering",
-        tags = {"mastering", "mixology"}
+        tags = {"mastering", "mixology", "herblore", "alchemy", "minigame", "herb", "paste", "mox", "aga", "lye"}
 )
 @Slf4j
 public class MasteringMixologyPlugin extends Plugin {
