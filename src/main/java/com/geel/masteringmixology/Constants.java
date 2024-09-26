@@ -9,6 +9,10 @@ public class Constants {
     public static int VB_POINTS_COUNT_AGA = 4415;
     public static int VB_POINTS_COUNT_LYE = 4414;
 
+    public static int VB_VAT_WEST = 11324;
+    public static int VB_VAT_MID = 11325;
+    public static int VB_VAT_EAST = 11326;
+
     public static int VB_CONTRACT_1_POTION = 11315;
     public static int VB_CONTRACT_1_TYPE = 11316;
     public static int VB_CONTRACT_2_POTION = 11317;

@@ -1,20 +1,22 @@
 package com.geel.masteringmixology;
 
-import com.geel.masteringmixology.enums.Contract;
-import com.geel.masteringmixology.enums.PastePotion;
-import com.geel.masteringmixology.enums.PotionType;
+import com.geel.masteringmixology.enums.AlchemyContract;
+import com.geel.masteringmixology.enums.AlchemyPaste;
+import com.geel.masteringmixology.enums.AlchemyPotion;
+import com.geel.masteringmixology.enums.AlchemyBuilding;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.api.Player;
-import net.runelite.api.Skill;
+import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.VarbitChanged;
+import net.runelite.api.events.*;
 import net.runelite.client.eventbus.Subscribe;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Singleton
@@ -49,34 +51,85 @@ public class MixologyGameState {
     @Getter
     private int concentratorProgress = -1;
 
-    private PotionType lastUsedBuilding = PotionType.NONE;
+    @Getter
+    private Map<AlchemyPaste, TileObject> leverObjects;
+
+    @Getter
+    private Map<AlchemyBuilding, TileObject> buildingObjects;
+
+    @Getter
+    private Set<TileObject> conveyorObjects = new HashSet<>();
+
+    @Getter
+    private TileObject mixerObject;
+
+    private AlchemyBuilding lastUsedBuilding = AlchemyBuilding.NONE;
     private int lastUsedBuildingTick = 0;
 
-    public Contract[] getContracts() {
+    public void start() {
+        leverObjects = new HashMap<>();
+        buildingObjects = new HashMap<>();
+        conveyorObjects = new HashSet<>();
+        mixerObject = null;
+    }
+
+    public void stop() {
+        leverObjects.clear();
+        buildingObjects.clear();
+        conveyorObjects.clear();
+        mixerObject = null;
+    }
+
+    public Map<AlchemyPaste, Integer> getCurrentMix() {
+        var ret = new HashMap<AlchemyPaste, Integer>();
+
+        var westVat = client.getVarbitValue(Constants.VB_VAT_WEST);
+        var midVat = client.getVarbitValue(Constants.VB_VAT_MID);
+        var eastVat = client.getVarbitValue(Constants.VB_VAT_EAST);
+
+        var vats = new int[] { westVat, midVat, eastVat};
+
+        for(var vat : vats) {
+            if(vat == 0) {
+                continue;
+            }
+
+            AlchemyPaste paste = AlchemyPaste.FromId(vat);
+            if(!ret.containsKey(paste)) {
+                ret.put(paste, 0);
+            }
+
+            ret.put(paste, ret.get(paste) + 1);
+        }
+
+        return ret;
+    }
+
+    public AlchemyContract[] getContracts() {
         var firstContract = getContractFromVarbitIDs(Constants.VB_CONTRACT_1_POTION, Constants.VB_CONTRACT_1_TYPE);
         var secondContract = getContractFromVarbitIDs(Constants.VB_CONTRACT_2_POTION, Constants.VB_CONTRACT_2_TYPE);
         var thirdContract = getContractFromVarbitIDs(Constants.VB_CONTRACT_3_POTION, Constants.VB_CONTRACT_3_TYPE);
 
         if (firstContract == null || secondContract == null || thirdContract == null) {
-            return new Contract[0];
+            return new AlchemyContract[0];
         }
 
         // My allocations!! My heap!! Look what you've _done_ to it!
-        return new Contract[]{
+        return new AlchemyContract[]{
                 firstContract,
                 secondContract,
                 thirdContract
         };
     }
 
-    public Contract getBestContract(Contract[] contracts) {
-        if(contracts == null || contracts.length == 0) {
+    public AlchemyContract getBestContract(AlchemyContract[] contracts) {
+        if (contracts == null || contracts.length == 0) {
             return null;
         }
 
         // For now, just return first contract we can do baybee
-        for(var contract : contracts) {
-            if(canMakePotion(contract.getPotion())) {
+        for (var contract : contracts) {
+            if (canMakePotion(contract.getPotion())) {
                 return contract;
             }
         }
@@ -84,17 +137,17 @@ public class MixologyGameState {
         return null;
     }
 
-    public PotionType getCurrentlyUsingBuilding() {
-        if (lastUsedBuilding == PotionType.NONE || lastUsedBuildingTick <= 0) {
-            return PotionType.NONE;
+    public AlchemyBuilding getCurrentlyUsingBuilding() {
+        if (lastUsedBuilding == AlchemyBuilding.NONE || lastUsedBuildingTick <= 0) {
+            return AlchemyBuilding.NONE;
         }
 
         if (lastUsedBuildingTick > client.getTickCount() || (client.getTickCount() - lastUsedBuildingTick) >= 2) {
-            return PotionType.NONE;
+            return AlchemyBuilding.NONE;
         }
 
         if (!client.getLocalPlayer().getWorldLocation().equals(lastUsedBuilding.getInteractionLocation())) {
-            return PotionType.NONE;
+            return AlchemyBuilding.NONE;
         }
 
         return lastUsedBuilding;
@@ -124,7 +177,7 @@ public class MixologyGameState {
         return x >= 1384 && x <= 1404 && y >= 9319 && y <= 9334;
     }
 
-    public boolean canMakePotion(PastePotion potion) {
+    public boolean canMakePotion(AlchemyPotion potion) {
         if (client.getBoostedSkillLevel(Skill.HERBLORE) < potion.getHerbloreLevel()) {
             return false;
         }
@@ -140,6 +193,73 @@ public class MixologyGameState {
         }
 
         return true;
+    }
+
+    @Subscribe
+    public void onDecorativeObjectSpawned(DecorativeObjectSpawned event) {
+        TileObject newObject = event.getDecorativeObject();
+
+        if(newObject.getId() == Constants.OBJECT_LEVER_AGA) {
+            leverObjects.put(AlchemyPaste.AGA, newObject);
+        }
+    }
+
+    @Subscribe
+    public void onDecorativeObjectDespawned(DecorativeObjectDespawned event) {
+        TileObject newObject = event.getDecorativeObject();
+
+        if(newObject.getId() == Constants.OBJECT_LEVER_AGA) {
+            leverObjects.remove(AlchemyPaste.AGA);
+        }
+    }
+
+    @Subscribe
+    public void onGameObjectSpawned(GameObjectSpawned event) {
+        TileObject newObject = event.getGameObject();
+        if (newObject.getId() == Constants.OBJECT_MIXER) {
+            mixerObject = newObject;
+        }
+        if(newObject.getId() == Constants.OBJECT_LEVER_MOX) {
+            leverObjects.put(AlchemyPaste.MOX, newObject);
+        }
+        if(newObject.getId() == Constants.OBJECT_LEVER_LYE) {
+            leverObjects.put(AlchemyPaste.LYE, newObject);
+        }
+
+        var building = AlchemyBuilding.FromBuildingObjectId(newObject.getId());
+        if (building != AlchemyBuilding.NONE) {
+            buildingObjects.put(building, newObject);
+        }
+
+        if(newObject.getId() == Constants.OBJECT_CONVEYOR_BELT) {
+            conveyorObjects.add(newObject);
+        }
+    }
+
+    @Subscribe
+    public void onGameObjectDespawned(GameObjectDespawned event) {
+        TileObject oldObject = event.getGameObject();
+        if(oldObject == mixerObject) {
+            mixerObject = null;
+        }
+        if(oldObject.getId() == Constants.OBJECT_LEVER_MOX) {
+            leverObjects.remove(AlchemyPaste.MOX);
+        }
+        if(oldObject.getId() == Constants.OBJECT_LEVER_AGA) {
+            leverObjects.remove(AlchemyPaste.AGA);
+        }
+        if(oldObject.getId() == Constants.OBJECT_LEVER_LYE) {
+            leverObjects.remove(AlchemyPaste.LYE);
+        }
+
+        var building = AlchemyBuilding.FromBuildingObjectId(oldObject.getId());
+        if (building != AlchemyBuilding.NONE) {
+            buildingObjects.remove(building);
+        }
+
+        if(oldObject.getId() == Constants.OBJECT_CONVEYOR_BELT) {
+            conveyorObjects.remove(oldObject);
+        }
     }
 
     @Subscribe
@@ -175,13 +295,13 @@ public class MixologyGameState {
             return;
         }
 
-        var buildingBeingUsed = PotionType.FromProgressVarbitId(varbitId);
-        if (buildingBeingUsed != PotionType.NONE) {
+        var buildingBeingUsed = AlchemyBuilding.FromProgressVarbitId(varbitId);
+        if (buildingBeingUsed != AlchemyBuilding.NONE) {
             handleBuildingUsed(buildingBeingUsed, varbitValue);
         }
     }
 
-    private Contract getContractFromVarbitIDs(int potionVarbitId, int cookTypeVarbitId) {
+    private AlchemyContract getContractFromVarbitIDs(int potionVarbitId, int cookTypeVarbitId) {
         var potion = client.getVarbitValue(potionVarbitId);
         var potionType = client.getVarbitValue(cookTypeVarbitId);
 
@@ -189,20 +309,20 @@ public class MixologyGameState {
             return null;
         }
 
-        return new Contract(PastePotion.FromId(potion), PotionType.FromId(potionType));
+        return new AlchemyContract(AlchemyPotion.FromId(potion), AlchemyBuilding.FromId(potionType));
     }
 
-    private void handleBuildingUsed(PotionType building, int progress) {
+    private void handleBuildingUsed(AlchemyBuilding building, int progress) {
         var player = client.getLocalPlayer();
         var interacting = player.getInteracting();
 
-        if (building == PotionType.HOMOGENIZED) {
+        if (building == AlchemyBuilding.AGITATOR_HOMOGENIZER) {
             homogenizerProgress = progress;
         }
-        if (building == PotionType.CONCENTRATRED) {
+        if (building == AlchemyBuilding.RETORT_CONCENTRATOR) {
             concentratorProgress = progress;
         }
-        if (building == PotionType.CRYSTALIZED) {
+        if (building == AlchemyBuilding.ALEMBIC_CRYSTALIZER) {
             crystalizerProgress = progress;
         }
 

@@ -1,15 +1,13 @@
 package com.geel.masteringmixology;
 
-import com.geel.masteringmixology.enums.Paste;
-import com.geel.masteringmixology.enums.PastePotion;
-import com.geel.masteringmixology.enums.PotionType;
+import com.geel.masteringmixology.enums.AlchemyPotion;
+import com.geel.masteringmixology.enums.AlchemyBuilding;
 import com.google.inject.Provides;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
-import net.runelite.api.TileObject;
 import net.runelite.api.events.*;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -18,10 +16,9 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
-import java.util.HashMap;
-import java.util.Map;
 
 @PluginDescriptor(
         name = "Mastering Mixology",
@@ -48,11 +45,15 @@ public class MasteringMixologyPlugin extends Plugin {
     private ClientThread clientThread;
 
     @Inject
+    private OverlayManager overlayManager;
+
+    @Inject
+    private MixologyOverlay overlay;
+
+    @Inject
     private MixologyGameState mixologyGameState;
 
-    private Map<Paste, TileObject> leverObjects;
-    private Map<PotionType, TileObject> buildingObjects;
-    private TileObject mixerObject;
+
 
     @Provides
     MasteringMixologyConfig provideConfig(ConfigManager configManager) {
@@ -63,18 +64,16 @@ public class MasteringMixologyPlugin extends Plugin {
     protected void startUp() throws Exception {
         eventBus.register(mixologyGameState);
 //        clientThread.invoke(this::loadFromConfig);
-        leverObjects = new HashMap<>();
-        buildingObjects = new HashMap<>();
-        mixerObject = null;
+        mixologyGameState.start();
+        overlayManager.add(overlay);
     }
 
     @Override
     protected void shutDown() throws Exception {
         eventBus.unregister(mixologyGameState);
 //        clientThread.invoke(this::resetParams);
-        leverObjects.clear();
-        buildingObjects.clear();
-        mixerObject = null;
+        mixologyGameState.stop();
+        overlayManager.remove(overlay);
     }
 
     @Subscribe
@@ -134,7 +133,7 @@ public class MasteringMixologyPlugin extends Plugin {
         }
 
         var building = mixologyGameState.getCurrentlyUsingBuilding();
-        if(building == PotionType.CRYSTALIZED) {
+        if(building == AlchemyBuilding.ALEMBIC_CRYSTALIZER) {
             if(mixologyGameState.getCrystalizerProgress() == 4) {
                 client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "NOW", "");
             }
@@ -180,24 +179,10 @@ public class MasteringMixologyPlugin extends Plugin {
         }
     }
 
-    @Subscribe
-    public void onGameObjectSpawned(GameObjectSpawned event) {
-        TileObject newObject = event.getGameObject();
-
-        if (newObject.getId() == Constants.OBJECT_MIXER){
-
-        }
-    }
-
-    @Subscribe
-    public void onGameObjectDespawned(GameObjectDespawned event) {
-
-    }
-
     private String potionNameToRecipe(String potionName) {
-        var potion = PastePotion.FromName(potionName);
+        var potion = AlchemyPotion.FromName(potionName);
 
-        if(potion == PastePotion.NONE) {
+        if(potion == AlchemyPotion.NONE) {
             return potionName;
         }
 
