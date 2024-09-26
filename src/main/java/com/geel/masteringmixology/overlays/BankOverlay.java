@@ -22,13 +22,13 @@ public class BankOverlay extends Overlay {
     BankOverlay(Client client, MasteringMixologyConfig config) {
         this.client = client;
         this.config = config;
-        this.setLayer(OverlayLayer.ALWAYS_ON_TOP);
+        this.setLayer(OverlayLayer.ABOVE_WIDGETS);
     }
 
     @Override
     public Dimension render(Graphics2D graphics) {
         Widget bankWidget = client.getWidget(ComponentID.BANK_ITEM_CONTAINER);
-        if (bankWidget.isHidden() || !config.bankOverlay()) {
+        if (bankWidget == null || bankWidget.isHidden() || !config.bankOverlay()) {
             return null;
         }
 

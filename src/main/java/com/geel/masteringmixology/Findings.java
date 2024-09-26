@@ -58,8 +58,10 @@ public class Findings {
      * Homogenize progress: 11329 0->15
      *
      * HERBS:
-     * 11332: Southwest herb?
-     *
+     * 11330: Northeast herb (GameObject ID: 55396)
+     * 11331: Southeast herb (GameObject ID: 55397)2
+     * 11332: Southwest herb (GameObject ID: 55398)
+     * 11333: Northwest herb (GameObject ID: 55399)
      *
      * --- OBJECTS ---
      *
