@@ -19,6 +19,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
+import java.awt.*;
 
 @PluginDescriptor(
         name = "Mastering Mixology",
@@ -52,7 +53,6 @@ public class MasteringMixologyPlugin extends Plugin {
 
     @Inject
     private MixologyGameState mixologyGameState;
-
 
 
     @Provides
@@ -169,14 +169,21 @@ public class MasteringMixologyPlugin extends Plugin {
         if(potion1Label.getText().length() != 3) {
             potion1Label.setText(potionNameToRecipe(potion1Label.getText()));
         }
-
         if(potion2Label.getText().length() != 3) {
             potion2Label.setText(potionNameToRecipe(potion2Label.getText()));
         }
-
         if(potion3Label.getText().length() != 3) {
             potion3Label.setText(potionNameToRecipe(potion3Label.getText()));
         }
+
+        var bestContractIndex = mixologyGameState.getBestContractIndex(mixologyGameState.getContracts());
+
+        // Gotta be a better way to do this
+        int onColor = Color.GREEN.getRGB();
+        int offColor = Color.WHITE.getRGB();
+        potion1Label.setTextColor(bestContractIndex == 0 ? onColor : offColor);
+        potion2Label.setTextColor(bestContractIndex == 1 ? onColor : offColor);
+        potion3Label.setTextColor(bestContractIndex == 2 ? onColor : offColor);
     }
 
     private String potionNameToRecipe(String potionName) {

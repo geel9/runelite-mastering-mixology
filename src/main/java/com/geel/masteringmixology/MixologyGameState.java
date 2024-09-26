@@ -1,9 +1,9 @@
 package com.geel.masteringmixology;
 
+import com.geel.masteringmixology.enums.AlchemyBuilding;
 import com.geel.masteringmixology.enums.AlchemyContract;
 import com.geel.masteringmixology.enums.AlchemyPaste;
 import com.geel.masteringmixology.enums.AlchemyPotion;
-import com.geel.masteringmixology.enums.AlchemyBuilding;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
@@ -23,6 +23,9 @@ import java.util.Set;
 public class MixologyGameState {
     @Inject
     private Client client;
+
+    @Inject
+    private MasteringMixologyConfig config;
 
     @Getter
     private int hopperMox = -1;
@@ -87,15 +90,15 @@ public class MixologyGameState {
         var midVat = client.getVarbitValue(Constants.VB_VAT_MID);
         var eastVat = client.getVarbitValue(Constants.VB_VAT_EAST);
 
-        var vats = new int[] { westVat, midVat, eastVat};
+        var vats = new int[]{westVat, midVat, eastVat};
 
-        for(var vat : vats) {
-            if(vat == 0) {
+        for (var vat : vats) {
+            if (vat == 0) {
                 continue;
             }
 
             AlchemyPaste paste = AlchemyPaste.FromId(vat);
-            if(!ret.containsKey(paste)) {
+            if (!ret.containsKey(paste)) {
                 ret.put(paste, 0);
             }
 
@@ -123,18 +126,34 @@ public class MixologyGameState {
     }
 
     public AlchemyContract getBestContract(AlchemyContract[] contracts) {
-        if (contracts == null || contracts.length == 0) {
+        var bestIndex = getBestContractIndex(contracts);
+        if (bestIndex == -1) {
             return null;
         }
 
-        // For now, just return first contract we can do baybee
-        for (var contract : contracts) {
-            if (canMakePotion(contract.getPotion())) {
-                return contract;
-            }
+        return contracts[bestIndex];
+    }
+
+    public int getBestContractIndex(AlchemyContract[] contracts) {
+        if (contracts == null || contracts.length == 0) {
+            return -1;
         }
 
-        return null;
+        int runnerUp = -1;
+        for (var i = 0; i < contracts.length; i++) {
+            var contract = contracts[i];
+            if (!canMakePotion(contract.getPotion())) {
+                continue;
+            }
+
+            if (contract.getType() == config.prioritisedBuilding()) {
+                return i;
+            }
+
+            runnerUp = i;
+        }
+
+        return runnerUp;
     }
 
     public AlchemyBuilding getCurrentlyUsingBuilding() {
@@ -199,7 +218,7 @@ public class MixologyGameState {
     public void onDecorativeObjectSpawned(DecorativeObjectSpawned event) {
         TileObject newObject = event.getDecorativeObject();
 
-        if(newObject.getId() == Constants.OBJECT_LEVER_AGA) {
+        if (newObject.getId() == Constants.OBJECT_LEVER_AGA) {
             leverObjects.put(AlchemyPaste.AGA, newObject);
         }
     }
@@ -208,7 +227,7 @@ public class MixologyGameState {
     public void onDecorativeObjectDespawned(DecorativeObjectDespawned event) {
         TileObject newObject = event.getDecorativeObject();
 
-        if(newObject.getId() == Constants.OBJECT_LEVER_AGA) {
+        if (newObject.getId() == Constants.OBJECT_LEVER_AGA) {
             leverObjects.remove(AlchemyPaste.AGA);
         }
     }
@@ -219,10 +238,10 @@ public class MixologyGameState {
         if (newObject.getId() == Constants.OBJECT_MIXER) {
             mixerObject = newObject;
         }
-        if(newObject.getId() == Constants.OBJECT_LEVER_MOX) {
+        if (newObject.getId() == Constants.OBJECT_LEVER_MOX) {
             leverObjects.put(AlchemyPaste.MOX, newObject);
         }
-        if(newObject.getId() == Constants.OBJECT_LEVER_LYE) {
+        if (newObject.getId() == Constants.OBJECT_LEVER_LYE) {
             leverObjects.put(AlchemyPaste.LYE, newObject);
         }
 
@@ -231,7 +250,7 @@ public class MixologyGameState {
             buildingObjects.put(building, newObject);
         }
 
-        if(newObject.getId() == Constants.OBJECT_CONVEYOR_BELT) {
+        if (newObject.getId() == Constants.OBJECT_CONVEYOR_BELT) {
             conveyorObjects.add(newObject);
         }
     }
@@ -239,16 +258,16 @@ public class MixologyGameState {
     @Subscribe
     public void onGameObjectDespawned(GameObjectDespawned event) {
         TileObject oldObject = event.getGameObject();
-        if(oldObject == mixerObject) {
+        if (oldObject == mixerObject) {
             mixerObject = null;
         }
-        if(oldObject.getId() == Constants.OBJECT_LEVER_MOX) {
+        if (oldObject.getId() == Constants.OBJECT_LEVER_MOX) {
             leverObjects.remove(AlchemyPaste.MOX);
         }
-        if(oldObject.getId() == Constants.OBJECT_LEVER_AGA) {
+        if (oldObject.getId() == Constants.OBJECT_LEVER_AGA) {
             leverObjects.remove(AlchemyPaste.AGA);
         }
-        if(oldObject.getId() == Constants.OBJECT_LEVER_LYE) {
+        if (oldObject.getId() == Constants.OBJECT_LEVER_LYE) {
             leverObjects.remove(AlchemyPaste.LYE);
         }
 
@@ -257,7 +276,7 @@ public class MixologyGameState {
             buildingObjects.remove(building);
         }
 
-        if(oldObject.getId() == Constants.OBJECT_CONVEYOR_BELT) {
+        if (oldObject.getId() == Constants.OBJECT_CONVEYOR_BELT) {
             conveyorObjects.remove(oldObject);
         }
     }
@@ -329,6 +348,8 @@ public class MixologyGameState {
         if (progress != 0) {
             lastUsedBuilding = building;
             lastUsedBuildingTick = client.getTickCount();
+        } else if(progress == 0) {
+            lastUsedBuilding = AlchemyBuilding.NONE;
         }
     }
 }

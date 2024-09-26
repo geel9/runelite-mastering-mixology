@@ -17,6 +17,7 @@ import java.awt.*;
 class MixologyOverlay extends Overlay {
     private final Client client;
     private final MixologyGameState gameState;
+    private final MasteringMixologyPlugin plugin;
 
     @Inject
     private MixologyOverlay(Client client, MixologyGameState gameState, MasteringMixologyPlugin plugin) {
@@ -25,6 +26,7 @@ class MixologyOverlay extends Overlay {
         setLayer(OverlayLayer.ABOVE_SCENE);
         this.client = client;
         this.gameState = gameState;
+        this.plugin = plugin;
     }
 
     @Override
@@ -78,24 +80,6 @@ class MixologyOverlay extends Overlay {
             buildingPassiveHighlight(graphics, bestContract);
             return null;
         }
-//
-//        plugin.getChests().forEach((tileObject, chest) ->
-//        {
-//            final int numKeys = itemContainer.count(chest.getKey());
-//
-//            if (numKeys == 0)
-//                return;
-//
-//            final String chestText = chest.name() + " x" + numKeys;
-//
-//            highlightObject(graphics, tileObject, Color.GREEN);
-//
-//            net.runelite.api.Point textLocation = tileObject.getCanvasTextLocation(graphics, chestText, 130);
-//
-//            if (textLocation != null) {
-//                OverlayUtil.renderTextLocation(graphics, textLocation, chestText, Color.WHITE);
-//            }
-//        });
 
         return null;
     }
