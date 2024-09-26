@@ -2,6 +2,9 @@ package com.geel.masteringmixology;
 
 import com.geel.masteringmixology.enums.AlchemyPotion;
 import com.geel.masteringmixology.enums.AlchemyBuilding;
+import com.geel.masteringmixology.overlays.BankOverlay;
+import com.geel.masteringmixology.overlays.InventoryOverlay;
+import com.geel.masteringmixology.overlays.MixologyOverlay;
 import com.google.inject.Provides;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +55,12 @@ public class MasteringMixologyPlugin extends Plugin {
     private MixologyOverlay overlay;
 
     @Inject
+    private InventoryOverlay inventoryOverlay;
+
+    @Inject
+    private BankOverlay bankOverlay;
+
+    @Inject
     private MixologyGameState mixologyGameState;
 
 
@@ -66,6 +75,8 @@ public class MasteringMixologyPlugin extends Plugin {
 //        clientThread.invoke(this::loadFromConfig);
         mixologyGameState.start();
         overlayManager.add(overlay);
+        overlayManager.add(inventoryOverlay);
+        overlayManager.add(bankOverlay);
     }
 
     @Override
@@ -74,6 +85,8 @@ public class MasteringMixologyPlugin extends Plugin {
 //        clientThread.invoke(this::resetParams);
         mixologyGameState.stop();
         overlayManager.remove(overlay);
+        overlayManager.remove(inventoryOverlay);
+        overlayManager.remove(bankOverlay);
     }
 
     @Subscribe
