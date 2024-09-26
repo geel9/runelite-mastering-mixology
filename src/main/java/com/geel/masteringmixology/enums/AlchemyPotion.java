@@ -5,7 +5,7 @@ import lombok.Getter;
 import net.runelite.api.ItemID;
 
 @AllArgsConstructor
-public enum PastePotion {
+public enum AlchemyPotion {
     NONE("", "", 0, 0, 0, 0, 0, 0, 0),
     MAMMOTH_MIGHT_MIX("Mammoth-might mix", "MMM", 1, 60, ItemID.MAMMOTHMIGHT_MIX, ItemID.MAMMOTHMIGHT_MIX_30021, 3, 0, 0),
     MYSTIC_MANA_AMALGAM("Mystic mana amalgam", "MMA", 2, 60, ItemID.MYSTIC_MANA_AMALGAM, ItemID.MYSTIC_MANA_AMALGAM_30022, 2, 1, 0),
@@ -16,7 +16,7 @@ public enum PastePotion {
     LIPLACK_LIQUOR("Liplack liquor", "LLL", 7, 86, ItemID.LIPLACK_LIQUOR, ItemID.LIPLACK_LIQUOR_30027, 0, 0, 3),
     MEGALITE_LIQUID("Megalite liquid", "MLL", 8, 80, ItemID.MEGALITE_LIQUID, ItemID.MEGALITE_LIQUID_30029, 1, 0, 2),
     ANTI_LEECH_LOTION("Anti-leech lotion", "ALL",9, 84, ItemID.ANTILEECH_LOTION, ItemID.ANTILEECH_LOTION_30028, 0, 1, 2),
-    MIXALOT("Mixalot", "MAL", 10, 64, ItemID.MIXALOT, 0, 1, 1, 1);
+    MIXALOT("Mixalot", "MAL", 10, 64, ItemID.MIXALOT, ItemID.MIXALOT_30030, 1, 1, 1);
 
     @Getter
     private final String Name;
@@ -45,25 +45,25 @@ public enum PastePotion {
     @Getter
     private final int LyeRequired;
 
-    public static PastePotion FromId(int potionIndex) {
+    public static AlchemyPotion FromId(int potionIndex) {
         // Todo: not a bruteforce search of a sorted, constant, array lmao
-        for (var potion : PastePotion.values()) {
+        for (var potion : AlchemyPotion.values()) {
             if (potion.PotionId == potionIndex) {
                 return potion;
             }
         }
 
-        return PastePotion.NONE;
+        return AlchemyPotion.NONE;
     }
 
-    public static PastePotion FromName(String name) {
+    public static AlchemyPotion FromName(String name) {
         // come on dude
-        for (var potion : PastePotion.values()) {
+        for (var potion : AlchemyPotion.values()) {
             if (potion.getName().equalsIgnoreCase(name)) {
                 return potion;
             }
         }
 
-        return PastePotion.NONE;
+        return AlchemyPotion.NONE;
     }
 }

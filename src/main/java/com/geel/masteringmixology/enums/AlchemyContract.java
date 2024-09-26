@@ -4,10 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @AllArgsConstructor
-public class Contract {
+public class AlchemyContract {
     @Getter
-    private PastePotion potion;
+    private AlchemyPotion potion;
 
     @Getter
-    private PotionType type;
+    private AlchemyBuilding type;
 }
