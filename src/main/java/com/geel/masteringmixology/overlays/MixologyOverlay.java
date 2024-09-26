@@ -1,5 +1,7 @@
-package com.geel.masteringmixology;
+package com.geel.masteringmixology.overlays;
 
+import com.geel.masteringmixology.MasteringMixologyPlugin;
+import com.geel.masteringmixology.MixologyGameState;
 import com.geel.masteringmixology.enums.AlchemyContract;
 import com.geel.masteringmixology.enums.AlchemyPaste;
 import com.geel.masteringmixology.enums.AlchemyBuilding;
@@ -14,6 +16,7 @@ import javax.inject.Inject;
 import java.awt.*;
 
 @Slf4j
+public
 class MixologyOverlay extends Overlay {
     private final Client client;
     private final MixologyGameState gameState;
