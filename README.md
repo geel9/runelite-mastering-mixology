@@ -1,1 +1,1 @@
-# runelite-mastering-mixology
+# Mastering Mixology
