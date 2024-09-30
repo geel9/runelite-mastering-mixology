@@ -2,6 +2,8 @@ package com.geel.masteringmixology;
 
 public class Findings {
     /**
+     * Some dude gave me shit in the RL discord for this file, so I'm keeping it around forever now.
+     *
      * VARBIT FINDINGS:
      *
      * PASTE COUNT

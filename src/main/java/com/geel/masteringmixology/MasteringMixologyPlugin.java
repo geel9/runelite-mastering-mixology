@@ -1,7 +1,9 @@
 package com.geel.masteringmixology;
 
+import com.geel.masteringmixology.enums.AlchemyContract;
 import com.geel.masteringmixology.enums.AlchemyPotion;
 import com.geel.masteringmixology.enums.AlchemyBuilding;
+import com.geel.masteringmixology.enums.ContractState;
 import com.google.inject.Provides;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +11,7 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.events.*;
+import net.runelite.api.widgets.Widget;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
@@ -54,6 +57,8 @@ public class MasteringMixologyPlugin extends Plugin {
     @Inject
     private MixologyGameState mixologyGameState;
 
+    private boolean stateStarted = false;
+
 
     @Provides
     MasteringMixologyConfig provideConfig(ConfigManager configManager) {
@@ -63,86 +68,41 @@ public class MasteringMixologyPlugin extends Plugin {
     @Override
     protected void startUp() throws Exception {
         eventBus.register(mixologyGameState);
-//        clientThread.invoke(this::loadFromConfig);
-        mixologyGameState.start();
         overlayManager.add(overlay);
+        stateStarted = false;
+        clientThread.invoke(this::shouldEnablePlugin);
     }
 
     @Override
     protected void shutDown() throws Exception {
         eventBus.unregister(mixologyGameState);
-//        clientThread.invoke(this::resetParams);
-        mixologyGameState.stop();
         overlayManager.remove(overlay);
+        clientThread.invoke(this::shouldDisablePlugin);
     }
 
     @Subscribe
-    public void onGameStateChanged(GameStateChanged gameStateChanged) {
-        if (gameStateChanged.getGameState() == GameState.LOGGED_IN) {
-//            clientThread.invoke(this::loadFromConfig);
-        }
-    }
-
-    @Subscribe
-    public void onConfigChanged(ConfigChanged configChanged) {
-        if (!configChanged.getGroup().equals(MasteringMixologyConfig.GROUP)) {
+    public void onGameTick(net.runelite.api.events.GameTick event) {
+        if(client.getGameState() != GameState.LOGGED_IN) {
+            shouldDisablePlugin();
             return;
         }
 
-//        clientThread.invoke(this::loadFromConfig);
-    }
-
-    @Subscribe
-    public void onCommandExecuted(CommandExecuted event) {
-        if (event.getCommand().equals("contracts")) {
-            clientThread.invoke(this::printContracts);
-        }
-    }
-
-    public void printContracts() {
-        var contracts = mixologyGameState.getContracts();
-        if (contracts == null || contracts.length == 0) {
-            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "Mixology Master", "No active contracts?", "");
+        if(!mixologyGameState.isInArea()) {
+            shouldDisablePlugin();
             return;
         }
 
-        for (var i = 0; i < contracts.length; i++) {
-            var contract = contracts[i];
-            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", i + ": " + contract.getType().name() + " " + contract.getPotion().getName(), "");
-        }
-    }
-
-    @Subscribe
-    public void onWidgetLoaded(WidgetLoaded event) {
-//        if (event.getGroupId() == InterfaceID.FAIRY_RING_PANEL && config.autoJumpFairyring()) {
-//            clientThread.invokeLater(this::handleFairyRingPanel);
-//        }
-//
-//        if (event.getGroupId() == InterfaceID.DIALOG_OPTION && isInBurrows()) {
-//            clientThread.invokeLater(this::handleBackToBackDialog);
-//        }
-
-        log.info("Widget loaded");
-    }
-
-
-    @Subscribe
-    public void onGameTick(GameTick event) {
-        if (!mixologyGameState.isInArea()) {
-            return;
-        }
-
-        var building = mixologyGameState.getCurrentlyUsingBuilding();
-        if(building == AlchemyBuilding.ALEMBIC_CRYSTALIZER) {
-            if(mixologyGameState.getCrystalizerProgress() == 4) {
-                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "NOW", "");
-            }
-        }
+        shouldEnablePlugin();
     }
 
     @Subscribe
     public void onPostClientTick(PostClientTick event) {
         if(!mixologyGameState.isInArea()) {
+            return;
+        }
+
+        var contracts = mixologyGameState.getContracts();
+        if(contracts == null || contracts.length != 3) {
             return;
         }
 
@@ -166,24 +126,26 @@ public class MasteringMixologyPlugin extends Plugin {
             return;
         }
 
-        if(potion1Label.getText().length() != 3) {
-            potion1Label.setText(potionNameToRecipe(potion1Label.getText()));
-        }
-        if(potion2Label.getText().length() != 3) {
-            potion2Label.setText(potionNameToRecipe(potion2Label.getText()));
-        }
-        if(potion3Label.getText().length() != 3) {
-            potion3Label.setText(potionNameToRecipe(potion3Label.getText()));
+        handlePotionContractLabel(contracts[0], potion1Label);
+        handlePotionContractLabel(contracts[1], potion2Label);
+        handlePotionContractLabel(contracts[2], potion3Label);
+    }
+
+    private void handlePotionContractLabel(AlchemyContract contract, Widget label) {
+        if(!contract.isCompleteRecipe()) {
+            label.setText("NO RECIPE");
+            return;
         }
 
-        var bestContractIndex = mixologyGameState.getBestContractIndex(mixologyGameState.getContracts());
+        label.setText(contract.getType().getId() + " " + contract.getPotion().getRecipeName() + " | " + contract.getState().toString());
 
-        // Gotta be a better way to do this
-        int onColor = Color.GREEN.getRGB();
-        int offColor = Color.WHITE.getRGB();
-        potion1Label.setTextColor(bestContractIndex == 0 ? onColor : offColor);
-        potion2Label.setTextColor(bestContractIndex == 1 ? onColor : offColor);
-        potion3Label.setTextColor(bestContractIndex == 2 ? onColor : offColor);
+        if(contract.getState() == ContractState.EXCLUDED) {
+            label.setTextColor(Color.RED.getRGB());
+        } else if(contract.getState().ordinal() > ContractState.BASE_IN_MIXER.ordinal()) {
+            label.setTextColor(Color.GREEN.getRGB());
+        } else if(contract.getState().ordinal() > ContractState.SELECTED.ordinal()) {
+            label.setTextColor(Color.YELLOW.getRGB());
+        }
     }
 
     private String potionNameToRecipe(String potionName) {
@@ -194,5 +156,25 @@ public class MasteringMixologyPlugin extends Plugin {
         }
 
         return potion.getRecipeName();
+    }
+
+    private void shouldDisablePlugin() {
+        if(!stateStarted) {
+            return;
+        }
+
+        stateStarted = false;
+        mixologyGameState.stop();
+        overlayManager.remove(overlay);
+    }
+
+    private void shouldEnablePlugin() {
+        if(stateStarted) {
+            return;
+        }
+
+        stateStarted = true;
+        mixologyGameState.start();
+        overlayManager.add(overlay);
     }
 }
