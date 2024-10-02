@@ -11,6 +11,7 @@ import net.runelite.client.eventbus.Subscribe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
+import java.util.function.Predicate;
 
 @Slf4j
 @Singleton
@@ -69,12 +70,14 @@ public class MixologyGameState {
     private AlchemyBuilding lastUsedBuilding = AlchemyBuilding.NONE;
     private int lastUsedBuildingTick = 0;
 
-    private final AlchemyContract[] contracts = new AlchemyContract[]
+    private final AlchemyContract[] rawContracts = new AlchemyContract[]
             {
                     new AlchemyContract(AlchemyPotion.NONE, AlchemyBuilding.NONE, ContractState.NONE),
                     new AlchemyContract(AlchemyPotion.NONE, AlchemyBuilding.NONE, ContractState.NONE),
                     new AlchemyContract(AlchemyPotion.NONE, AlchemyBuilding.NONE, ContractState.NONE)
             };
+
+    private AlchemyContract[] effectiveContracts = new AlchemyContract[0];
 
     public void start() {
         leverObjects = new HashMap<>();
@@ -121,14 +124,18 @@ public class MixologyGameState {
         return ret;
     }
 
-    public AlchemyContract[] getContracts() {
-        for (var contract : contracts) {
+    public AlchemyContract[] getEffectiveContracts() {
+        if (effectiveContracts == null || effectiveContracts.length != 3) {
+            return null;
+        }
+
+        for (var contract : effectiveContracts) {
             if (contract == null || contract.getPotion() == AlchemyPotion.NONE || contract.getType() == AlchemyBuilding.NONE) {
                 return null;
             }
         }
 
-        return contracts;
+        return effectiveContracts;
     }
 
     public AlchemyContract getBestContract(AlchemyContract[] contracts) {
@@ -213,7 +220,7 @@ public class MixologyGameState {
 
     @Subscribe
     public void onSoundEffectPlayed(SoundEffectPlayed event) {
-        if(event.getSoundId() == 2655 && client.getLocalPlayer().getWorldLocation().equals(AlchemyBuilding.AGITATOR_HOMOGENIZER.getInteractionLocation())) {
+        if (event.getSoundId() == 2655 && client.getLocalPlayer().getWorldLocation().equals(AlchemyBuilding.AGITATOR_HOMOGENIZER.getInteractionLocation())) {
             lastAgitatorSoundEffectPlayedTick = client.getTickCount();
         }
     }
@@ -258,7 +265,7 @@ public class MixologyGameState {
             conveyorObjects.add(newObject);
         }
 
-        if(newObject.getId() == Constants.OBJECT_HOPPER) {
+        if (newObject.getId() == Constants.OBJECT_HOPPER) {
             hopperObject = newObject;
         }
     }
@@ -288,7 +295,7 @@ public class MixologyGameState {
             conveyorObjects.remove(oldObject);
         }
 
-        if(oldObject.getId() == Constants.OBJECT_HOPPER) {
+        if (oldObject.getId() == Constants.OBJECT_HOPPER) {
             hopperObject = null;
         }
     }
@@ -337,8 +344,8 @@ public class MixologyGameState {
             var collectedPotion = AlchemyPotion.FromName(potionName);
             AlchemyBuilding collectedPotionType = crystalising ? AlchemyBuilding.ALEMBIC_CRYSTALIZER : (homogenizing ? AlchemyBuilding.AGITATOR_HOMOGENIZER : AlchemyBuilding.RETORT_CONCENTRATOR);
 
-            for(var contract : contractsInState(ContractState.PROCESSING_BASE)) {
-                if(contract.consumeBuildingProcessingFinished(collectedPotion, collectedPotionType)) {
+            for (var contract : contractsInState(ContractState.PROCESSING_BASE)) {
+                if (contract.consumeBuildingProcessingFinished(collectedPotion, collectedPotionType)) {
                     break;
                 }
             }
@@ -394,27 +401,27 @@ public class MixologyGameState {
                 return;
 
             case Constants.VB_CONTRACT_1_POTION:
-                contracts[0].setPotion(AlchemyPotion.FromId(varbitValue));
+                rawContracts[0].setPotion(AlchemyPotion.FromId(varbitValue));
                 rethinkContracts();
                 return;
             case Constants.VB_CONTRACT_1_TYPE:
-                contracts[0].setType(AlchemyBuilding.FromId(varbitValue));
+                rawContracts[0].setType(AlchemyBuilding.FromId(varbitValue));
                 rethinkContracts();
                 return;
             case Constants.VB_CONTRACT_2_POTION:
-                contracts[1].setPotion(AlchemyPotion.FromId(varbitValue));
+                rawContracts[1].setPotion(AlchemyPotion.FromId(varbitValue));
                 rethinkContracts();
                 return;
             case Constants.VB_CONTRACT_2_TYPE:
-                contracts[1].setType(AlchemyBuilding.FromId(varbitValue));
+                rawContracts[1].setType(AlchemyBuilding.FromId(varbitValue));
                 rethinkContracts();
                 return;
             case Constants.VB_CONTRACT_3_POTION:
-                contracts[2].setPotion(AlchemyPotion.FromId(varbitValue));
+                rawContracts[2].setPotion(AlchemyPotion.FromId(varbitValue));
                 rethinkContracts();
                 return;
             case Constants.VB_CONTRACT_3_TYPE:
-                contracts[2].setType(AlchemyBuilding.FromId(varbitValue));
+                rawContracts[2].setType(AlchemyBuilding.FromId(varbitValue));
                 rethinkContracts();
                 return;
         }
@@ -440,12 +447,12 @@ public class MixologyGameState {
     }
 
     private void handleBuildingPotionChanged(AlchemyBuilding building, AlchemyPotion potion) {
-        if(potion == AlchemyPotion.NONE) {
+        if (potion == AlchemyPotion.NONE) {
             return;
         }
 
-        for(var contract : contractsInState(ContractState.SHOULD_PROCESS_BASE)) {
-            if(contract.consumeBuildingProcessingStarted(potion, building)) {
+        for (var contract : contractsInState(ContractState.SHOULD_PROCESS_BASE)) {
+            if (contract.consumeBuildingProcessingStarted(potion, building)) {
                 break;
             }
         }
@@ -474,9 +481,11 @@ public class MixologyGameState {
     }
 
     private void clearContracts() {
-        for (var i = 0; i < contracts.length; i++) {
-            contracts[i].reset();
+        for (var i = 0; i < rawContracts.length; i++) {
+            rawContracts[i].reset();
         }
+
+        effectiveContracts = null;
     }
 
     private void refreshContractsFromVarbits() {
@@ -486,25 +495,34 @@ public class MixologyGameState {
         handleVarbit(Constants.VB_CONTRACT_2_TYPE, client.getVarbitValue(Constants.VB_CONTRACT_2_TYPE));
         handleVarbit(Constants.VB_CONTRACT_3_POTION, client.getVarbitValue(Constants.VB_CONTRACT_3_POTION));
         handleVarbit(Constants.VB_CONTRACT_3_TYPE, client.getVarbitValue(Constants.VB_CONTRACT_3_TYPE));
+        handleVarbit(Constants.VB_PASTE_COUNT_MOX, client.getVarbitValue(Constants.VB_PASTE_COUNT_MOX));
+        handleVarbit(Constants.VB_PASTE_COUNT_AGA, client.getVarbitValue(Constants.VB_PASTE_COUNT_AGA));
+        handleVarbit(Constants.VB_PASTE_COUNT_LYE, client.getVarbitValue(Constants.VB_PASTE_COUNT_LYE));
     }
 
     private void rethinkContracts() {
+        resortContracts();
+
         for (var contract : contractsInState(ContractState.NONE)) {
             if (!contract.isCompleteRecipe()) {
                 continue;
             }
 
-            if (contract.getPotion().getLyeRequired() >= 1) {
-                contract.select();
-            } else {
+            if (contract.getPotion().getMoxRequired() == 3 && false) {
                 contract.exclude();
+            } else {
+                contract.select();
             }
         }
 
         // If we're excluding all contracts, select the first
         if (contractsInState(ContractState.EXCLUDED).length == 3) {
-            contracts[0].select();
+            rawContracts[0].select();
         }
+    }
+
+    private void resortContracts() {
+        effectiveContracts = Arrays.stream(rawContracts).sorted(Comparator.comparingInt(c -> c.getType().ordinal())).toArray(AlchemyContract[]::new);
     }
 
     private void scanForObjects() {
@@ -551,7 +569,7 @@ public class MixologyGameState {
                             buildingObjects.put(AlchemyBuilding.ALEMBIC_CRYSTALIZER, gameObject);
                             break;
                         }
-                        if(gameObject.getId() == Constants.OBJECT_HOPPER) {
+                        if (gameObject.getId() == Constants.OBJECT_HOPPER) {
                             hopperObject = gameObject;
                             break;
                         }
@@ -561,35 +579,34 @@ public class MixologyGameState {
         }
     }
 
-    public boolean anyContractsInState(ContractState state) {
-        for (var contract : contracts) {
-            if (contract.getState() == state) {
-                return true;
-            }
-        }
+    public AlchemyContract[] selectedContracts() {
+        return contractsWhere(c -> c.getState().ordinal() >= ContractState.SELECTED.ordinal());
+    }
 
-        return false;
+    public AlchemyContract[] selectedContractsForBuilding(AlchemyBuilding building) {
+        return contractsWhere(c -> c.getState().ordinal() >= ContractState.SELECTED.ordinal() && c.getType() == building);
     }
 
     public AlchemyContract[] contractsInState(ContractState state) {
-        var ret = new ArrayList<>();
-        for (var contract : contracts) {
-            if (contract.getState() == state) {
-                ret.add(contract);
-            }
-        }
-
-        return ret.toArray(new AlchemyContract[0]);
+        return contractsWhere(c -> c.getState() == state);
     }
 
     public AlchemyContract[] contractsInStates(ContractState[] states) {
+        return contractsWhere(c -> Arrays.stream(states).anyMatch(s -> s == c.getState()));
+    }
+
+    public AlchemyContract[] contractsWhere(Predicate<AlchemyContract> predicate) {
+        var contracts = getEffectiveContracts();
+        if (contracts == null || contracts.length != 3) {
+            return new AlchemyContract[0];
+        }
+
         var ret = new ArrayList<>();
         for (var contract : contracts) {
-            if (Arrays.stream(states).anyMatch(p -> p == contract.getState())) {
+            if (predicate.test(contract)) {
                 ret.add(contract);
             }
         }
-
         return ret.toArray(new AlchemyContract[0]);
     }
 }

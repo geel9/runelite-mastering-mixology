@@ -42,4 +42,8 @@ public class Constants {
     public static final int OBJECT_CONVEYOR_BELT = 54917;
 
     public static final int WIDGET_MIXOLOGY_OVERLAY_CONTAINER = 57802754;
+
+    public static final int SPRITE_AGITATOR_HOMOGENIZE = 5674;
+    public static final int SPRITE_ALEMBIC_CRYSTALIZE = 5673;
+    public static final int SPRITE_RETORT_CONCENTRATE = 5672;
 }

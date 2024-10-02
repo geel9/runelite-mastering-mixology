@@ -2,12 +2,10 @@ package com.geel.masteringmixology;
 
 import com.geel.masteringmixology.enums.AlchemyContract;
 import com.geel.masteringmixology.enums.AlchemyPotion;
-import com.geel.masteringmixology.enums.AlchemyBuilding;
 import com.geel.masteringmixology.enums.ContractState;
 import com.google.inject.Provides;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.events.*;
@@ -16,7 +14,6 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -101,7 +98,7 @@ public class MasteringMixologyPlugin extends Plugin {
             return;
         }
 
-        var contracts = mixologyGameState.getContracts();
+        var contracts = mixologyGameState.getEffectiveContracts();
         if(contracts == null || contracts.length != 3) {
             return;
         }

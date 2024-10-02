@@ -7,8 +7,6 @@ import com.geel.masteringmixology.enums.ContractState;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Point;
 import net.runelite.api.*;
-import net.runelite.api.events.SoundEffectPlayed;
-import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -16,6 +14,22 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import javax.inject.Inject;
 import java.awt.*;
 
+/**
+ * NOTE:
+ * <p>
+ * This is a _perfect_ example of spaghetti code. Good lord, this is bad.
+ * <p>
+ * You are witnessing the results of a man who is writing something solely for personal use and which he does not
+ * expect to have to modify in the future, because the content this plugin is for _sucks_ and I'm only making this plugin so
+ * I can do the content as efficiently as possible and be done with it forever.
+ * <p>
+ * Originally, this overlay only highlighted the _current_ action. Then I made it highlight the "next" action, with as little refactoring as possible.
+ * This means that the resultant code is quite shit and spaghettified and hard to follow. Sorry.
+ * <p>
+ * I know how to do it better, I just don't want to spend the effort.
+ * <p>
+ * Again, sorry.
+ */
 @Slf4j
 class MixologyOverlay extends Overlay {
     private final Client client;
@@ -42,7 +56,7 @@ class MixologyOverlay extends Overlay {
             return null;
         }
 
-        var contracts = gameState.getContracts();
+        var contracts = gameState.getEffectiveContracts();
         var bestContract = gameState.getBestContract(contracts);
 
         if (bestContract == null) {
@@ -64,7 +78,7 @@ class MixologyOverlay extends Overlay {
         var neededAga = 0;
         var neededLye = 0;
 
-        for(var resourceContract : needResourcesForContracts) {
+        for (var resourceContract : needResourcesForContracts) {
             neededMox += resourceContract.getPotion().getMoxRequired() * 10;
             neededAga += resourceContract.getPotion().getAgaRequired() * 10;
             neededLye += resourceContract.getPotion().getLyeRequired() * 10;
@@ -85,27 +99,35 @@ class MixologyOverlay extends Overlay {
 
         if (processingContracts.length > 0) {
             buildingActiveHighlight(graphics, processingContracts[0].getType());
+            buildingPassiveHighlight(graphics);
+
+            if (processingContracts.length == 1 && shouldProcessBaseContracts.length == 0) {
+                conveyorHighlight(graphics, true);
+            }
             return null;
         }
 
-        if (baseInMixerContracts.length > 0) {
-            mixerHighlight(graphics);
-            return null;
-        }
+        if (shouldMakeBaseContracts.length > 0 || baseInMixerContracts.length > 0) {
+            leverOrMixerHighlight(
+                    graphics,
+                    shouldMakeBaseContracts.length == 0 ? null : shouldMakeBaseContracts[0],
+                    baseInMixerContracts.length == 0 ? null : baseInMixerContracts[0]
+            );
 
-        if (shouldMakeBaseContracts.length > 0) {
-            leverHighlight(graphics, shouldMakeBaseContracts[0]);
+            if (shouldMakeBaseContracts.length == 0) {
+                buildingPassiveHighlight(graphics);
+            }
             return null;
         }
 
         if (shouldProcessBaseContracts.length > 0) {
-            buildingPassiveHighlight(graphics, shouldProcessBaseContracts[0]);
+            buildingPassiveHighlight(graphics);
             return null;
         }
 
         // TODO: Better state tracking than "any infused of the right type in inventory"
         if (readyContracts.length > 0) {
-            conveyorHighlight(graphics);
+            conveyorHighlight(graphics, false);
             return null;
         }
 
@@ -124,62 +146,92 @@ class MixologyOverlay extends Overlay {
             highlightColor = Color.YELLOW;
         }
 
-        if(building == AlchemyBuilding.AGITATOR_HOMOGENIZER && (client.getTickCount() - gameState.getLastAgitatorSoundEffectPlayedTick()) <= 1) {
+        if (building == AlchemyBuilding.AGITATOR_HOMOGENIZER && (client.getTickCount() - gameState.getLastAgitatorSoundEffectPlayedTick()) <= 2) {
             highlightColor = Color.YELLOW;
         }
 
         highlightObject(graphics, buildingObject, highlightColor);
     }
 
-    private void buildingPassiveHighlight(Graphics2D graphics, AlchemyContract contract) {
-        var building = contract.getType();
-        var buildingObject = gameState.getBuildingObjects().get(building);
+    private void buildingPassiveHighlight(Graphics2D graphics) {
+        var processingContracts = gameState.contractsInState(ContractState.PROCESSING_BASE);
+        var mixerReadyContracts = gameState.contractsInState(ContractState.BASE_IN_MIXER);
 
-        if (buildingObject == null) {
-            return;
+        var passiveHighlightIsSecondary = processingContracts.length > 0 || mixerReadyContracts.length > 0;
+
+        // Fuck me jesus christ this is bad
+        var buildingContracts = mixerReadyContracts.length == 0
+                ? gameState.contractsInState(ContractState.SHOULD_PROCESS_BASE)
+                : gameState.selectedContracts();
+
+        var primaryOutlineOpacity = !passiveHighlightIsSecondary ? 100 : 50;
+        var primaryFillOpacity = !passiveHighlightIsSecondary ? 50 : 25;
+        var otherOutlineOpacity = !passiveHighlightIsSecondary ? 50 : 33;
+        var otherFillOpacity = !passiveHighlightIsSecondary ? 25 : 15;
+
+        var primaryColor = !passiveHighlightIsSecondary ? Color.GREEN : Color.YELLOW;
+        var secondaryColor = !passiveHighlightIsSecondary ? Color.YELLOW : Color.RED;
+        var tertiaryColor = Color.RED;
+
+        if (buildingContracts.length > 0) {
+            highlightObject(graphics, gameState.getBuildingObjects().get(buildingContracts[0].getType()), primaryColor, primaryOutlineOpacity, primaryFillOpacity);
         }
 
-        highlightObject(graphics, buildingObject, Color.YELLOW);
+        if (buildingContracts.length > 1 && buildingContracts[1].getType() != buildingContracts[0].getType()) {
+            highlightObject(graphics, gameState.getBuildingObjects().get(buildingContracts[1].getType()), secondaryColor, otherOutlineOpacity, otherFillOpacity);
+        }
+
+        if (buildingContracts.length > 2 && buildingContracts[2].getType() != buildingContracts[0].getType() && buildingContracts[2].getType() != buildingContracts[1].getType()) {
+            highlightObject(graphics, gameState.getBuildingObjects().get(buildingContracts[2].getType()), tertiaryColor, otherOutlineOpacity, otherFillOpacity);
+        }
     }
 
     private void hopperHighlight(Graphics2D graphics) {
         highlightObject(graphics, gameState.getHopperObject(), Color.RED);
     }
 
-    private void mixerHighlight(Graphics2D graphics) {
-        highlightObject(graphics, gameState.getMixerObject(), Color.GREEN);
-    }
+    private void leverOrMixerHighlight(Graphics2D graphics, AlchemyContract leverContract, AlchemyContract mixerContract) {
+        var mixerReady = mixerContract != null;
 
-    private void leverHighlight(Graphics2D graphics, AlchemyContract contract) {
-        var moxLever = gameState.getLeverObjects().get(AlchemyPaste.MOX);
-        var agaLever = gameState.getLeverObjects().get(AlchemyPaste.AGA);
-        var lyeLever = gameState.getLeverObjects().get(AlchemyPaste.LYE);
+        if (leverContract != null) {
+            var moxLever = gameState.getLeverObjects().get(AlchemyPaste.MOX);
+            var agaLever = gameState.getLeverObjects().get(AlchemyPaste.AGA);
+            var lyeLever = gameState.getLeverObjects().get(AlchemyPaste.LYE);
 
-        if (moxLever == null || agaLever == null || lyeLever == null) {
-            return;
+            if (moxLever == null || agaLever == null || lyeLever == null) {
+                return;
+            }
+
+            var currentMix = gameState.getCurrentMix();
+            var currentMox = mixerReady ? 0 : currentMix.getOrDefault(AlchemyPaste.MOX, 0);
+            var currentAga = mixerReady ? 0 : currentMix.getOrDefault(AlchemyPaste.AGA, 0);
+            var currentLye = mixerReady ? 0 : currentMix.getOrDefault(AlchemyPaste.LYE, 0);
+            var requiredMox = leverContract.getPotion().getMoxRequired();
+            var requiredAga = leverContract.getPotion().getAgaRequired();
+            var requiredLye = leverContract.getPotion().getLyeRequired();
+
+            var leverHighlightOpacityFactor = mixerReady ? 0.5d : 1.0d;
+            var leverHighlightOutline = (int) (leverHighlightOpacityFactor * 100);
+            var leverHighlightFill = (int) (leverHighlightOpacityFactor * 50);
+
+            if (currentMox < requiredMox) {
+                highlightObject(graphics, moxLever, leverDeltaToColor(requiredMox - currentMox), leverHighlightOutline, leverHighlightFill);
+            }
+            if (currentAga < requiredAga) {
+                highlightObject(graphics, agaLever, leverDeltaToColor(requiredAga - currentAga), leverHighlightOutline, leverHighlightFill);
+            }
+            if (currentLye < requiredLye) {
+                highlightObject(graphics, lyeLever, leverDeltaToColor(requiredLye - currentLye), leverHighlightOutline, leverHighlightFill);
+            }
         }
 
-        var currentMix = gameState.getCurrentMix();
-        var currentMox = currentMix.getOrDefault(AlchemyPaste.MOX, 0);
-        var currentAga = currentMix.getOrDefault(AlchemyPaste.AGA, 0);
-        var currentLye = currentMix.getOrDefault(AlchemyPaste.LYE, 0);
-        var requiredMox = contract.getPotion().getMoxRequired();
-        var requiredAga = contract.getPotion().getAgaRequired();
-        var requiredLye = contract.getPotion().getLyeRequired();
-
-        if (currentMox < requiredMox) {
-            highlightObject(graphics, moxLever, leverDeltaToColor(requiredMox - currentMox));
-        }
-        if (currentAga < requiredAga) {
-            highlightObject(graphics, agaLever, leverDeltaToColor(requiredAga - currentAga));
-        }
-        if (currentLye < requiredLye) {
-            highlightObject(graphics, lyeLever, leverDeltaToColor(requiredLye - currentLye));
+        if (mixerReady && gameState.getMixerObject() != null) {
+            highlightObject(graphics, gameState.getMixerObject(), Color.GREEN);
         }
     }
 
     private Color leverDeltaToColor(int delta) {
-        switch(delta) {
+        switch (delta) {
             case 1:
                 return Color.RED;
             case 2:
@@ -191,27 +243,34 @@ class MixologyOverlay extends Overlay {
         }
     }
 
-    private void conveyorHighlight(Graphics2D graphics) {
+    private void conveyorHighlight(Graphics2D graphics, boolean isSecondaryHighlight) {
         for (var conveyor : gameState.getConveyorObjects()) {
-            highlightObject(graphics, conveyor, Color.GREEN);
+            highlightObject(graphics, conveyor, !isSecondaryHighlight ? Color.GREEN : Color.YELLOW);
         }
     }
 
-
     private void highlightObject(Graphics2D graphics, TileObject object, Color color) {
+        highlightObject(graphics, object, color, 100, 50);
+    }
+
+    private void highlightObject(Graphics2D graphics, TileObject object, Color color, int outlineOpacity, int fillOpacity) {
         Point mousePosition = client.getMouseCanvasPosition();
 
         Shape objectClickbox = object.getClickbox();
-        if (objectClickbox != null) {
-            if (objectClickbox.contains(mousePosition.getX(), mousePosition.getY())) {
-                graphics.setColor(color.darker());
-            } else {
-                graphics.setColor(color);
-            }
+        if (objectClickbox == null) return;
 
-            graphics.draw(objectClickbox);
-            graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 50));
-            graphics.fill(objectClickbox);
+
+        Color outlineColor = color;
+        if (objectClickbox.contains(mousePosition.getX(), mousePosition.getY())) {
+            outlineColor = color.darker();
         }
+
+        outlineColor = new Color(outlineColor.getRed(), outlineColor.getGreen(), outlineColor.getBlue(), outlineOpacity);
+        graphics.setColor(outlineColor);
+
+        graphics.draw(objectClickbox);
+        graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), fillOpacity));
+        graphics.fill(objectClickbox);
     }
+
 }
