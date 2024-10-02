@@ -1,9 +1,9 @@
 package com.geel.masteringmixology;
 
 public class Constants {
-    public static final int VB_PASTE_COUNT_MOX = 11321;
-    public static final int VB_PASTE_COUNT_AGA = 11322;
-    public static final int VB_PASTE_COUNT_LYE = 11323;
+    public static final int VB_PASTE_COUNT_MOX = 11433;
+    public static final int VB_PASTE_COUNT_AGA = 11432;
+    public static final int VB_PASTE_COUNT_LYE = 11431;
 
     public static final int VB_POINTS_COUNT_MOX = 4416;
     public static final int VB_POINTS_COUNT_AGA = 4415;
