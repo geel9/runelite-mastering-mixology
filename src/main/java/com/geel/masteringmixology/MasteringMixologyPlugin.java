@@ -118,20 +118,23 @@ public class MasteringMixologyPlugin extends Plugin {
         }
 
         var topLabel = children[0];
+        var potion1Sprite = children[1];
         var potion1Label = children[2];
+        var potion2Sprite = children[3];
         var potion2Label = children[4];
+        var potion3Sprite = children[5];
         var potion3Label = children[6];
 
         if(!topLabel.getText().equals("Potion Orders") || topLabel.isHidden()) {
             return;
         }
 
-        handlePotionContractLabel(contracts[0], potion1Label);
-        handlePotionContractLabel(contracts[1], potion2Label);
-        handlePotionContractLabel(contracts[2], potion3Label);
+        handlePotionContractLabel(contracts[0], potion1Label, potion1Sprite);
+        handlePotionContractLabel(contracts[1], potion2Label, potion2Sprite);
+        handlePotionContractLabel(contracts[2], potion3Label, potion3Sprite);
     }
 
-    private void handlePotionContractLabel(AlchemyContract contract, Widget label) {
+    private void handlePotionContractLabel(AlchemyContract contract, Widget label, Widget sprite) {
         if(!contract.isCompleteRecipe()) {
             label.setText("NO RECIPE");
             return;
@@ -145,6 +148,18 @@ public class MasteringMixologyPlugin extends Plugin {
             label.setTextColor(Color.GREEN.getRGB());
         } else if(contract.getState().ordinal() > ContractState.SELECTED.ordinal()) {
             label.setTextColor(Color.YELLOW.getRGB());
+        }
+
+        switch(contract.getType()) {
+            case ALEMBIC_CRYSTALIZER:
+                sprite.setSpriteId(Constants.SPRITE_ALEMBIC_CRYSTALIZE);
+                break;
+            case RETORT_CONCENTRATOR:
+                sprite.setSpriteId(Constants.SPRITE_RETORT_CONCENTRATE);
+                break;
+            case AGITATOR_HOMOGENIZER:
+                sprite.setSpriteId(Constants.SPRITE_AGITATOR_HOMOGENIZE);
+                break;
         }
     }
 
