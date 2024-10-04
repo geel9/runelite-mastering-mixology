@@ -508,7 +508,7 @@ public class MixologyGameState {
                 continue;
             }
 
-            if (contract.getPotion().getMoxRequired() == 3 && false) {
+            if (contract.getPotion().getMoxRequired() == 3 || contract.getPotion().getAgaRequired() == 3) {
                 contract.exclude();
             } else {
                 contract.select();
@@ -517,7 +517,7 @@ public class MixologyGameState {
 
         // If we're excluding all contracts, select the first
         if (contractsInState(ContractState.EXCLUDED).length == 3) {
-            rawContracts[0].select();
+            Arrays.stream(rawContracts).sorted(Comparator.comparingInt(c -> -c.getPotion().getLyeRequired())).findFirst().get().select();
         }
     }
 
