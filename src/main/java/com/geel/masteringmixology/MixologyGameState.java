@@ -361,6 +361,29 @@ public class MixologyGameState {
         var buildingBeingUsed = AlchemyBuilding.FromProgressVarbitId(varbitId);
         if (buildingBeingUsed != AlchemyBuilding.NONE) {
             handleBuildingUsed(buildingBeingUsed, varbitValue);
+            return;
+        }
+
+        // Handle digweed
+        for(var digweed : DigweedSpawn.values()) {
+            if(!isInArea()) {
+                break;
+            }
+
+            if(digweed == DigweedSpawn.NONE) {
+                continue;
+            }
+
+            if(digweed.getVarbitId() != varbitId) {
+                continue;
+            }
+
+            if(varbitValue == 0) {
+                client.clearHintArrow();
+            } else {
+                client.setHintArrow(digweed.getSpawnPoint());
+                break;
+            }
         }
 
         switch (varbitId) {

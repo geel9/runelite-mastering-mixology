@@ -1,5 +1,7 @@
 package com.geel.masteringmixology;
 
+import net.runelite.api.NullObjectID;
+
 public class Constants {
     public static final int VB_PASTE_COUNT_MOX = 11433;
     public static final int VB_PASTE_COUNT_AGA = 11432;
@@ -29,6 +31,11 @@ public class Constants {
     public static final int VB_ALEMBIC_PROGRESS = 11328;
     public static final int VB_ALEMBIC_POTION = 11342;
 
+    public static final int VB_DIGWEED_NORTH_EAST = 11330;
+    public static final int VB_DIGWEED_SOUTH_EAST = 11331;
+    public static final int VB_DIGWEED_SOUTH_WEST = 11332;
+    public static final int VB_DIGWEED_NORTH_WEST = 11333;
+
     public static final int OBJECT_LEVER_MOX = 54868;
     public static final int OBJECT_LEVER_AGA = 54867; // Decoration?
     public static final int OBJECT_LEVER_LYE = 54869;
@@ -46,4 +53,6 @@ public class Constants {
     public static final int SPRITE_AGITATOR_HOMOGENIZE = 5674;
     public static final int SPRITE_ALEMBIC_CRYSTALIZE = 5673;
     public static final int SPRITE_RETORT_CONCENTRATE = 5672;
+
+    public static final int[] OBJECT_DIGWEED = new int[] {NullObjectID.NULL_55396, NullObjectID.NULL_55397, NullObjectID.NULL_55398, NullObjectID.NULL_55399, };
 }
