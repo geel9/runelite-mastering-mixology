@@ -251,6 +251,9 @@ public class MixologyGameState {
         if (newObject.getId() == Constants.OBJECT_LEVER_MOX) {
             leverObjects.put(AlchemyPaste.MOX, newObject);
         }
+        if(newObject.getId() == Constants.OBJECT_LEVER_AGA) {
+            leverObjects.put(AlchemyPaste.AGA, newObject);
+        }
         if (newObject.getId() == Constants.OBJECT_LEVER_LYE) {
             leverObjects.put(AlchemyPaste.LYE, newObject);
         }
