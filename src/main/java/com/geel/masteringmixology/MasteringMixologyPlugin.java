@@ -29,6 +29,9 @@ import java.awt.*;
 @Slf4j
 public class MasteringMixologyPlugin extends Plugin {
 
+    private static final int PROC_MASTERING_MIXOLOGY_BUILD_POTION_ORDER = 7063;
+    private static final int PROC_MASTERING_MIXOLOGY_BUILD_REAGENTS = 7064;
+
     @Inject
     @Getter
     private MasteringMixologyConfig config;
@@ -90,6 +93,16 @@ public class MasteringMixologyPlugin extends Plugin {
         }
 
         shouldEnablePlugin();
+    }
+
+    @Subscribe
+    public void onScriptPostFired(ScriptPostFired event) {
+        if (event.getScriptId() != PROC_MASTERING_MIXOLOGY_BUILD_REAGENTS) {
+            return;
+        }
+
+        shouldEnablePlugin();
+        mixologyGameState.scanForObjects();
     }
 
     @Subscribe
