@@ -82,12 +82,12 @@ public class MasteringMixologyPlugin extends Plugin {
 
     @Subscribe
     public void onGameTick(net.runelite.api.events.GameTick event) {
-        if(client.getGameState() != GameState.LOGGED_IN) {
+        if (client.getGameState() != GameState.LOGGED_IN) {
             shouldDisablePlugin();
             return;
         }
 
-        if(!mixologyGameState.isInArea()) {
+        if (!mixologyGameState.isInArea()) {
             shouldDisablePlugin();
             return;
         }
@@ -107,12 +107,12 @@ public class MasteringMixologyPlugin extends Plugin {
 
     @Subscribe
     public void onPostClientTick(PostClientTick event) {
-        if(!mixologyGameState.isInArea()) {
+        if (!mixologyGameState.isInArea()) {
             return;
         }
 
         var contracts = mixologyGameState.getEffectiveContracts();
-        if(contracts == null || contracts.length != 3) {
+        if (contracts == null || contracts.length != 3) {
             return;
         }
 
@@ -135,7 +135,7 @@ public class MasteringMixologyPlugin extends Plugin {
         var potion3Sprite = children[5];
         var potion3Label = children[6];
 
-        if(!topLabel.getText().equals("Potion Orders") || topLabel.isHidden()) {
+        if (!topLabel.getText().equals("Potion Orders") || topLabel.isHidden()) {
             return;
         }
 
@@ -145,22 +145,22 @@ public class MasteringMixologyPlugin extends Plugin {
     }
 
     private void handlePotionContractLabel(AlchemyContract contract, Widget label, Widget sprite) {
-        if(!contract.isCompleteRecipe()) {
+        if (!contract.isCompleteRecipe()) {
             label.setText("NO RECIPE");
             return;
         }
 
         label.setText(contract.getType().getId() + " " + contract.getPotion().getRecipeName() + " | " + contract.getState().toString());
 
-        if(contract.getState() == ContractState.EXCLUDED) {
+        if (contract.getState() == ContractState.EXCLUDED) {
             label.setTextColor(Color.RED.getRGB());
-        } else if(contract.getState().ordinal() > ContractState.BASE_IN_MIXER.ordinal()) {
+        } else if (contract.getState().ordinal() > ContractState.BASE_IN_MIXER.ordinal()) {
             label.setTextColor(Color.GREEN.getRGB());
-        } else if(contract.getState().ordinal() > ContractState.SELECTED.ordinal()) {
+        } else if (contract.getState().ordinal() > ContractState.SELECTED.ordinal()) {
             label.setTextColor(Color.YELLOW.getRGB());
         }
 
-        switch(contract.getType()) {
+        switch (contract.getType()) {
             case ALEMBIC_CRYSTALIZER:
                 sprite.setSpriteId(Constants.SPRITE_ALEMBIC_CRYSTALIZE);
                 break;
@@ -176,7 +176,7 @@ public class MasteringMixologyPlugin extends Plugin {
     private String potionNameToRecipe(String potionName) {
         var potion = AlchemyPotion.FromName(potionName);
 
-        if(potion == AlchemyPotion.NONE) {
+        if (potion == AlchemyPotion.NONE) {
             return potionName;
         }
 
@@ -184,7 +184,7 @@ public class MasteringMixologyPlugin extends Plugin {
     }
 
     private void shouldDisablePlugin() {
-        if(!stateStarted) {
+        if (!stateStarted) {
             return;
         }
 
@@ -194,7 +194,7 @@ public class MasteringMixologyPlugin extends Plugin {
     }
 
     private void shouldEnablePlugin() {
-        if(stateStarted) {
+        if (stateStarted) {
             return;
         }
 

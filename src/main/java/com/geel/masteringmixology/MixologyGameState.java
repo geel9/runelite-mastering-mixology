@@ -227,11 +227,7 @@ public class MixologyGameState {
 
     @Subscribe
     public void onDecorativeObjectSpawned(DecorativeObjectSpawned event) {
-        TileObject newObject = event.getDecorativeObject();
-
-        if (newObject.getId() == Constants.OBJECT_LEVER_AGA) {
-            leverObjects.put(AlchemyPaste.AGA, newObject);
-        }
+        handleTileObject(event.getDecorativeObject());
     }
 
     @Subscribe
@@ -245,7 +241,10 @@ public class MixologyGameState {
 
     @Subscribe
     public void onGameObjectSpawned(GameObjectSpawned event) {
-        TileObject newObject = event.getGameObject();
+        handleTileObject(event.getGameObject());
+    }
+
+    private void handleTileObject(TileObject newObject) {
         if (newObject.getId() == Constants.OBJECT_MIXER) {
             mixerObject = newObject;
         }
@@ -355,6 +354,16 @@ public class MixologyGameState {
     @Subscribe
     public void onVarbitChanged(VarbitChanged event) {
         handleVarbit(event.getVarbitId(), event.getValue());
+    }
+
+    public boolean hasAllContracts() {
+        for (var contract : this.rawContracts) {
+            if (contract == null || contract.getType() == AlchemyBuilding.NONE || contract.getPotion() == AlchemyPotion.NONE) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void handleVarbit(int varbitId, int varbitValue) {
@@ -524,78 +533,71 @@ public class MixologyGameState {
     }
 
     private void rethinkContracts() {
-        resortContracts();
+        if (!hasAllContracts()) {
+            return;
+        }
 
-        for (var contract : contractsInState(ContractState.NONE)) {
+        int mixalot = -1;
+        int xxy = 0;
+        int lastXXY = -1;
+        int i = -1;
+        for (var contract : rawContracts) {
+            i++;
             if (!contract.isCompleteRecipe()) {
                 continue;
             }
 
-            if (contract.getPotion().getMoxRequired() == 3 || contract.getPotion().getAgaRequired() == 3) {
-                contract.exclude();
-            } else {
-                contract.select();
+            if (contract.getPotion().getMoxRequired() == 3 || contract.getPotion().getAgaRequired() == 3 || contract.getPotion().getLyeRequired() == 3) {
+            } else if(contract.getPotion().getMoxRequired() == 2 || contract.getPotion().getAgaRequired() == 2 || contract.getPotion().getLyeRequired() == 2) {
+                xxy++;
+                lastXXY = i;
+            }
+            else {
+                mixalot = i;
             }
         }
 
-        // If we're excluding all contracts, select the first
-        if (contractsInState(ContractState.EXCLUDED).length == 3) {
-            Arrays.stream(rawContracts).sorted(Comparator.comparingInt(c -> -c.getPotion().getLyeRequired())).findFirst().get().select();
+        boolean hasMAL = mixalot != -1;
+
+        if(hasMAL || xxy == 3) {
+            rawContracts[0].select();
+            rawContracts[1].select();
+            rawContracts[2].select();
+        } else {
+            rawContracts[lastXXY == -1 ? 0 : lastXXY].select();
         }
+
+        resortContracts();
     }
 
     private void resortContracts() {
-        effectiveContracts = Arrays.stream(rawContracts).sorted(Comparator.comparingInt(c -> c.getType().ordinal())).toArray(AlchemyContract[]::new);
+        effectiveContracts = Arrays
+                .stream(rawContracts)
+                .sorted(Comparator.comparingInt(c -> c.getType().ordinal()))
+                .toArray(AlchemyContract[]::new);
     }
 
-    private void scanForObjects() {
+    public void scanForObjects() {
         var worldView = client.getTopLevelWorldView();
         var scene = worldView.getScene();
         var tiles = scene.getTiles();
         for (var tileX : tiles) {
             for (var tileY : tileX) {
                 for (var tile : tileY) {
+                    if(tile == null) {
+                        continue;
+                    }
+
                     var decorativeObject = tile.getDecorativeObject();
-                    if (decorativeObject != null && decorativeObject.getId() == Constants.OBJECT_LEVER_AGA) {
-                        leverObjects.put(AlchemyPaste.AGA, decorativeObject);
+                    if (decorativeObject != null) {
+                        handleTileObject(decorativeObject);
                     }
 
                     for (var gameObject : tile.getGameObjects()) {
                         if (gameObject == null) {
                             break;
                         }
-                        if (gameObject.getId() == Constants.OBJECT_LEVER_MOX) {
-                            leverObjects.put(AlchemyPaste.MOX, gameObject);
-                            break;
-                        }
-                        if (gameObject.getId() == Constants.OBJECT_LEVER_LYE) {
-                            leverObjects.put(AlchemyPaste.LYE, gameObject);
-                            break;
-                        }
-                        if (gameObject.getId() == Constants.OBJECT_CONVEYOR_BELT) {
-                            conveyorObjects.add(gameObject);
-                            break;
-                        }
-                        if (gameObject.getId() == Constants.OBJECT_MIXER) {
-                            mixerObject = gameObject;
-                            break;
-                        }
-                        if (gameObject.getId() == Constants.OBJECT_AGITATOR_HOMOGENIZE) {
-                            buildingObjects.put(AlchemyBuilding.AGITATOR_HOMOGENIZER, gameObject);
-                            break;
-                        }
-                        if (gameObject.getId() == Constants.OBJECT_RETORT_CONCENTRATE) {
-                            buildingObjects.put(AlchemyBuilding.RETORT_CONCENTRATOR, gameObject);
-                            break;
-                        }
-                        if (gameObject.getId() == Constants.OBJECT_ALEMBIC_CRYSTALIZE) {
-                            buildingObjects.put(AlchemyBuilding.ALEMBIC_CRYSTALIZER, gameObject);
-                            break;
-                        }
-                        if (gameObject.getId() == Constants.OBJECT_HOPPER) {
-                            hopperObject = gameObject;
-                            break;
-                        }
+                        handleTileObject(gameObject);
                     }
                 }
             }
